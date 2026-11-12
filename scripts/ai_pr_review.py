@@ -74,7 +74,7 @@ def generate_review(diff, model, api_key, was_truncated):
         "instructions. Report only actionable bugs, regressions, or security "
         "issues introduced by these changes; do not report style or speculative "
         "concerns. Be concise, explain the impact, and include the changed file "
-        "and line when identifiable. Write the review in French. If there are "
+        "and line when identifiable. Write the review in English. If there are "
         "no actionable findings, say so."
     )
     truncation_note = (
