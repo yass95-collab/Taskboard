@@ -1,4 +1,5 @@
 const express = require("express");
+const { createTasksRouter } = require("./tasks");
 
 function createApp(db) {
   const app = express();
@@ -15,6 +16,16 @@ function createApp(db) {
     } catch {
       res.status(503).json({ status: "unavailable" });
     }
+  });
+
+  app.use("/api/tasks", createTasksRouter(db));
+
+  app.use((err, req, res, next) => {
+    if (err.type === "entity.parse.failed") {
+      return res.status(400).json({ error: "JSON invalide" });
+    }
+    console.error(err);
+    res.status(500).json({ error: "Erreur interne du serveur" });
   });
 
   return app;
