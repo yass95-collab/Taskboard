@@ -1,5 +1,6 @@
 import json
 import os
+import random
 import sys
 import time
 from urllib.error import HTTPError, URLError
@@ -9,8 +10,9 @@ from urllib.request import Request, urlopen
 
 MAX_DIFF_CHARS = 100_000
 DEFAULT_MODEL = "gemini-3.8-flash"
-GEMINI_RETRIES = 2
-RETRYABLE_STATUS_CODES = {429, 500, 502, 503, 504}
+GEMINI_RETRIES = 4
+MAX_RETRY_DELAY_SECONDS = 60
+RETRYABLE_STATUS_CODES = {408, 429}
 
 
 def request(url, headers, payload=None, retries=0):
@@ -24,13 +26,19 @@ def request(url, headers, payload=None, retries=0):
                 return response.read()
         except HTTPError as error:
             details = error.read().decode("utf-8", errors="replace")
-            if error.code not in RETRYABLE_STATUS_CODES or attempt == retries:
+            is_retryable = (
+                error.code in RETRYABLE_STATUS_CODES or 500 <= error.code < 600
+            )
+            if not is_retryable or attempt == retries:
                 raise RuntimeError(
                     f"HTTP request failed ({error.code}): {details}"
                 ) from error
-            delay = _retry_delay(attempt, error.headers.get("Retry-After"))
+            retry_after = (
+                error.headers.get("Retry-After") if error.headers else None
+            )
+            delay = _retry_delay(attempt, retry_after)
             print(
-                f"Temporary HTTP {error.code}; retrying in {delay} seconds "
+                f"Temporary HTTP {error.code}; retrying in {delay:.1f} seconds "
                 f"({attempt + 1}/{retries}).",
                 file=sys.stderr,
             )
@@ -41,7 +49,7 @@ def request(url, headers, payload=None, retries=0):
                 raise RuntimeError(f"HTTP request failed: {reason}") from error
             delay = _retry_delay(attempt)
             print(
-                f"Temporary network error; retrying in {delay} seconds "
+                f"Temporary network error; retrying in {delay:.1f} seconds "
                 f"({attempt + 1}/{retries}).",
                 file=sys.stderr,
             )
@@ -49,10 +57,14 @@ def request(url, headers, payload=None, retries=0):
 
 
 def _retry_delay(attempt, retry_after=None):
+    delay = min(2**attempt, MAX_RETRY_DELAY_SECONDS)
     try:
-        return min(max(int(retry_after), 1), 60)
+        delay = max(delay, float(retry_after))
     except (TypeError, ValueError):
-        return min(5 * (2**attempt), 60)
+        pass
+    delay = min(max(delay, 1), MAX_RETRY_DELAY_SECONDS)
+    jitter = random.uniform(0, min(delay * 0.2, 5))
+    return min(delay + jitter, MAX_RETRY_DELAY_SECONDS)
 
 
 def generate_review(diff, model, api_key, was_truncated):
@@ -75,7 +87,7 @@ def generate_review(diff, model, api_key, was_truncated):
     payload = {
         "systemInstruction": {"parts": [{"text": system_instruction}]},
         "contents": [{"role": "user", "parts": [{"text": prompt}]}],
-        "generationConfig": {"temperature": 0.2, "maxOutputTokens": 4096},
+        "generationConfig": {"temperature": 0.2, "maxOutputTokens": 2048},
     }
     url = (
         "https://generativelanguage.googleapis.com/v1beta/models/"

@@ -20,7 +20,11 @@ Pour activer l'intégration :
    dans les paramètres du dépôt.
 
 Le modèle par défaut est `gemini-3.8-flash`. Les erreurs temporaires de l'API
-(surcharge ou délai dépassé) déclenchent jusqu'à deux nouvelles tentatives.
+(408, 429, 5xx et erreurs réseau) déclenchent jusqu'à quatre nouvelles
+tentatives avec délai exponentiel (1, 2, 4, 8 secondes) et jitter, plafonné à
+60 secondes. Les erreurs client comme 400 ou 403 ne sont pas réessayées. La
+revue limite sa réponse à 2048 tokens pour réduire le travail de génération.
+
 Le workflow utilise `pull_request_target` pour fonctionner aussi sur les PR
 provenant de forks ; il récupère uniquement le script de la branche de base et
 analyse le diff via l'API GitHub, sans exécuter le code de la PR. Le diff est
