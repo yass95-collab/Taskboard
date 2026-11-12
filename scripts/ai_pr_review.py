@@ -1,6 +1,7 @@
 import json
 import os
 import sys
+import time
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote
 from urllib.request import Request, urlopen
@@ -8,23 +9,50 @@ from urllib.request import Request, urlopen
 
 MAX_DIFF_CHARS = 100_000
 DEFAULT_MODEL = "gemini-3.8-flash"
+GEMINI_RETRIES = 2
+RETRYABLE_STATUS_CODES = {429, 500, 502, 503, 504}
 
 
-def request(url, headers, payload=None):
+def request(url, headers, payload=None, retries=0):
     data = json.dumps(payload).encode("utf-8") if payload is not None else None
     method = "POST" if payload is not None else "GET"
-    http_request = Request(url, data=data, headers=headers, method=method)
 
+    for attempt in range(retries + 1):
+        http_request = Request(url, data=data, headers=headers, method=method)
+        try:
+            with urlopen(http_request, timeout=180) as response:
+                return response.read()
+        except HTTPError as error:
+            details = error.read().decode("utf-8", errors="replace")
+            if error.code not in RETRYABLE_STATUS_CODES or attempt == retries:
+                raise RuntimeError(
+                    f"HTTP request failed ({error.code}): {details}"
+                ) from error
+            delay = _retry_delay(attempt, error.headers.get("Retry-After"))
+            print(
+                f"Temporary HTTP {error.code}; retrying in {delay} seconds "
+                f"({attempt + 1}/{retries}).",
+                file=sys.stderr,
+            )
+            time.sleep(delay)
+        except (TimeoutError, URLError) as error:
+            if attempt == retries:
+                reason = getattr(error, "reason", error)
+                raise RuntimeError(f"HTTP request failed: {reason}") from error
+            delay = _retry_delay(attempt)
+            print(
+                f"Temporary network error; retrying in {delay} seconds "
+                f"({attempt + 1}/{retries}).",
+                file=sys.stderr,
+            )
+            time.sleep(delay)
+
+
+def _retry_delay(attempt, retry_after=None):
     try:
-        with urlopen(http_request, timeout=180) as response:
-            return response.read()
-    except HTTPError as error:
-        details = error.read().decode("utf-8", errors="replace")
-        raise RuntimeError(
-            f"HTTP request failed ({error.code}): {details}"
-        ) from error
-    except URLError as error:
-        raise RuntimeError(f"HTTP request failed: {error.reason}") from error
+        return min(max(int(retry_after), 1), 60)
+    except (TypeError, ValueError):
+        return min(5 * (2**attempt), 60)
 
 
 def generate_review(diff, model, api_key, was_truncated):
@@ -60,6 +88,7 @@ def generate_review(diff, model, api_key, was_truncated):
             "x-goog-api-key": api_key,
         },
         payload,
+        retries=GEMINI_RETRIES,
     )
     result = json.loads(response)
     candidates = result.get("candidates", [])
