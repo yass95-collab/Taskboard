@@ -13,7 +13,10 @@ Pour activer l'intégration :
 1. Créez une clé API dans [Google AI Studio](https://aistudio.google.com/apikey).
 2. Ajoutez-la dans **Settings > Secrets and variables > Actions** sous le nom
    `GEMINI_API_KEY`.
-3. Vérifiez que les GitHub Actions sont autorisées à créer des revues de PR
+3. (Facultatif) Ajoutez une variable Actions nommée `GEMINI_MODEL` pour choisir
+   le modèle. La valeur par défaut est `gemini-3.8-flash`. Pour essayer une
+   alternative Flash-Lite, utilisez `gemini-3.5-flash-lite`.
+4. Vérifiez que les GitHub Actions sont autorisées à créer des revues de PR
    dans les paramètres du dépôt.
 
 Le modèle par défaut est `gemini-3.8-flash`. Les erreurs temporaires de l'API
