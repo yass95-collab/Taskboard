@@ -7,7 +7,7 @@ from urllib.request import Request, urlopen
 
 
 MAX_DIFF_CHARS = 100_000
-DEFAULT_MODEL = "gemini-2.5-flash"
+DEFAULT_MODEL = "gemini-3.8-flash"
 
 
 def request(url, headers, payload=None):
