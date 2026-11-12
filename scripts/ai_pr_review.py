@@ -13,6 +13,7 @@ DEFAULT_MODEL = "gemini-3.8-flash"
 GEMINI_RETRIES = 4
 MAX_RETRY_DELAY_SECONDS = 60
 RETRYABLE_STATUS_CODES = {408, 429}
+TEAM_REVIEWERS = ("yass95-collab", "vadimbrsn", "Yvan134")
 
 
 def request(url, headers, payload=None, retries=0):
@@ -65,6 +66,31 @@ def _retry_delay(attempt, retry_after=None):
     delay = min(max(delay, 1), MAX_RETRY_DELAY_SECONDS)
     jitter = random.uniform(0, min(delay * 0.2, 5))
     return min(delay + jitter, MAX_RETRY_DELAY_SECONDS)
+
+
+def request_team_reviewers(
+    api_url, repository, number, headers, action, pull_request
+):
+    if action not in {"opened", "reopened"}:
+        return
+
+    author = pull_request["user"]["login"].casefold()
+    already_requested = {
+        reviewer["login"].casefold()
+        for reviewer in pull_request.get("requested_reviewers") or []
+    }
+    reviewers = [
+        reviewer
+        for reviewer in TEAM_REVIEWERS
+        if reviewer.casefold() != author
+        and reviewer.casefold() not in already_requested
+    ]
+    if not reviewers:
+        return
+
+    url = f"{api_url}/repos/{repository}/pulls/{number}/requested_reviewers"
+    request(url, headers, {"reviewers": reviewers}, retries=2)
+    print(f"Requested PR review from: {', '.join(reviewers)}.")
 
 
 def generate_review(diff, model, api_key, was_truncated):
@@ -142,6 +168,14 @@ def main():
         "X-GitHub-Api-Version": "2022-11-28",
         "User-Agent": "taskboard-ai-pr-review",
     }
+    request_team_reviewers(
+        api_url,
+        repository,
+        number,
+        headers,
+        event.get("action"),
+        pull_request,
+    )
     diff_headers = {
         **headers,
         "Accept": "application/vnd.github.v3.diff",
