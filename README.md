@@ -16,7 +16,7 @@ Pour activer l'intégration :
 3. Vérifiez que les GitHub Actions sont autorisées à créer des revues de PR
    dans les paramètres du dépôt.
 
-Le modèle par défaut est `gemini-2.5-flash`. Le workflow utilise
+Le modèle par défaut est `gemini-3.8-flash`. Le workflow utilise
 `pull_request_target` pour fonctionner aussi sur les PR provenant de forks ;
 il récupère uniquement le script de la branche de base et analyse le diff via
 l'API GitHub, sans exécuter le code de la PR. Le diff est transmis à Google
