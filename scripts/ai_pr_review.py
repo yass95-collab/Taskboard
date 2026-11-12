@@ -16,7 +16,7 @@ def request(url, headers, payload=None):
     http_request = Request(url, data=data, headers=headers, method=method)
 
     try:
-        with urlopen(http_request, timeout=60) as response:
+        with urlopen(http_request, timeout=180) as response:
             return response.read()
     except HTTPError as error:
         details = error.read().decode("utf-8", errors="replace")
