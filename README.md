@@ -7,6 +7,7 @@ Projet DevSecOps Yassine Vadim Yvan
 commit poussé sur celle-ci, GitHub Actions demande une revue du diff à Gemini
 et publie le résultat comme commentaire de revue sur la PR en mentionnant son
 auteur. Une nouvelle revue est publiée à chaque déclenchement.
+Les commentaires de revue sont rédigés en anglais.
 
 Pour activer l'intégration :
 
