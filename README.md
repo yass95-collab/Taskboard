@@ -29,4 +29,9 @@ revue limite sa réponse à 2048 tokens pour réduire le travail de génération
 Le workflow utilise `pull_request_target` pour fonctionner aussi sur les PR
 provenant de forks ; il récupère uniquement le script de la branche de base et
 analyse le diff via l'API GitHub, sans exécuter le code de la PR. Le diff est
-transmis à Google Gemini pour analyse.
+transmis à Google Gemini pour analyse. Le titre et la description de la PR sont
+également transmis comme contexte non fiable. Les exigences du projet résumées
+à partir du PDF fourni sont dans
+[docs/project-review-guidelines.md](docs/project-review-guidelines.md). Ce
+fichier est chargé depuis la branche de base comme consignes de revue. La revue
+ne lit toujours pas l'intégralité du code du dépôt.
