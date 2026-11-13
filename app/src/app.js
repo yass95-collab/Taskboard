@@ -1,4 +1,5 @@
 const express = require("express");
+const path = require("path");
 const { createTasksRouter } = require("./tasks");
 
 function createApp(db) {
@@ -17,7 +18,7 @@ function createApp(db) {
       res.status(503).json({ status: "unavailable" });
     }
   });
-
+  app.use(express.static(path.join(__dirname, "..", "public")));
   app.use("/api/tasks", createTasksRouter(db));
 
   app.use((err, req, res, next) => {
