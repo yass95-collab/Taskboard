@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TaskBoard</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 600px; margin: 40px auto; padding: 0 16px; background: #f5f6f8; color: #222; }
+    form { display: flex; gap: 8px; margin-bottom: 8px; }
+    input[type="text"] { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 16px; }
+    button { padding: 10px 14px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; }
+    .add { background: #2563eb; color: #fff; }
+    .delete { background: #fee2e2; color: #b91c1c; }
+    ul { list-style: none; padding: 0; }
+    li { display: flex; align-items: center; gap: 10px; background: #fff; padding: 12px; border-radius: 6px; margin-bottom: 8px; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08); }
+    li span { flex: 1; }
+    li.done span { text-decoration: line-through; color: #888; }
+    #error { color: #b91c1c; min-height: 20px; }
+  </style>
+</head>
+<body>
+  <h1>TaskBoard</h1>
+  <form id="form">
+    <input type="text" id="title" placeholder="Nouvelle tâche" maxlength="255" required>
+    <button type="submit" class="add">Ajouter</button>
+  </form>
+  <p id="error"></p>
+  <ul id="list"></ul>
+
+  <script>
+    const list = document.getElementById("list");
+    const form = document.getElementById("form");
+    const titleInput = document.getElementById("title");
+    const errorBox = document.getElementById("error");
+
+    async function api(method, url, body) {
+      const response = await fetch(url, {
+        method,
+        headers: body ? { "Content-Type": "application/json" } : {},
+        body: body ? JSON.stringify(body) : undefined,
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || "Erreur " + response.status);
+      }
+      return response.status === 204 ? null : response.json();
+    }
+
+    function render(tasks) {
+      list.replaceChildren();
+      for (const task of tasks) {
+        const item = document.createElement("li");
+        if (task.completed) item.classList.add("done");
+
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.checked = task.completed;
+        checkbox.addEventListener("change", () =>
+          run(() => api("PATCH", "/api/tasks/" + task.id, { completed: checkbox.checked }))
+        );
+
+        const title = document.createElement("span");
+        title.textContent = task.title;
+
+        const remove = document.createElement("button");
+        remove.className = "delete";
+        remove.textContent = "Supprimer";
+        remove.addEventListener("click", () => run(() => api("DELETE", "/api/tasks/" + task.id)));
+
+        item.append(checkbox, title, remove);
+        list.append(item);
+      }
+    }
+
+    async function load() {
+      render(await api("GET", "/api/tasks"));
+    }
+
+    async function run(action) {
+      errorBox.textContent = "";
+      try {
+        await action();
+        await load();
+      } catch (error) {
+        errorBox.textContent = error.message;
+      }
+    }
+
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const title = titleInput.value;
+      run(async () => {
+        await api("POST", "/api/tasks", { title });
+        titleInput.value = "";
+      });
+    });
+
+    run(async () => {});
+  </script>
+</body>
+</html>
